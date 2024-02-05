@@ -76,6 +76,28 @@ const run = async () => {
                 res.status(500).send('Error adding student');
             }
         });
+        app.get("/student/:id", async (req, res) => {
+            const id = req.params.id;
+      
+            const result = await studentsCollection.findOne({ _id: new ObjectId(id) });
+            console.log(result);
+            res.send(result);
+          });
+     
+        app.get('/students/:id', async (req, res) => {
+            const id = req.params.group_id;
+            const query = { categoryId: id };
+            console.log(query)
+            const result = await studentsCollection.find(query).toArray();
+            if(result){
+                res.status(200).json({ message: `${result.length} students get successfully`, result});
+            }
+            else {
+                res.status(404).json({ message:'student not found'})
+            }
+            // res.send(result);
+            
+        })
         // Login route handler
         app.post('/login', async (req, res) => {
             try {
