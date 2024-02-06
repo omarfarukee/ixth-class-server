@@ -248,6 +248,13 @@ const run = async () => {
             }
         });
 
+        app.delete("/teacher/:id", async (req, res) => {
+            const id = req.params.id;
+
+            const result = await teachersCollection.deleteOne({ _id: new ObjectId(id) });
+            console.log(result);
+            res.send(result);
+        });
 
 
 
