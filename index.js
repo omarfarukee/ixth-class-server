@@ -41,6 +41,7 @@ const run = async () => {
 
             res.send(result);
         });
+
         app.get("/categories", async (req, res) => {
             const cursor = categoryCollection.find({});
             const allGroups = await cursor.toArray();
@@ -164,13 +165,15 @@ const run = async () => {
             res.send(result);
         });
         // Login route handler
-        app.post('/login', async (req, res) => {
+        app.post('/student/login', async (req, res) => {
             try {
                 const { email, password } = req.body;
-                const student = await studentsCollection.findOne({ email, password });
-
+                const student = await studentsCollection.findOne({ email });
                 if (!student) {
-                    return res.status(401).json({ error: 'Invalid email or password' });
+                    return res.status(401).json({ error: 'Invalid email' });
+                }
+                if (student.password !== password) {
+                    return res.status(401).json({ error: 'Invalid password' });
                 }
                 res.status(200).json({ message: 'Login successful', student });
             } catch (error) {
@@ -205,12 +208,39 @@ const run = async () => {
                 res.status(500).send('Error adding teacher');
             }
         });
+
         app.get("/all-teachers", async (req, res) => {
             const cursor = teachersCollection.find({});
             const allTeachers = await cursor.toArray();
 
             res.send({ status: true, message: allTeachers.length, data: allTeachers });
         });
+
+        app.post('/teacher/login', async (req, res) => {
+            try {
+                const { email, password } = req.body;
+
+                // Find a teacher with the provided email
+                const teacher = await teachersCollection.findOne({ email });
+
+                // If no teacher found with the provided email, return error
+                if (!teacher) {
+                    return res.status(401).json({ error: 'Invalid email!' });
+                }
+
+                // If the teacher's password doesn't match the provided password, return error
+                if (teacher.password !== password) {
+                    return res.status(401).json({ error: 'Invalid password!' });
+                }
+
+                // If both email and password match, login is successful
+                res.status(200).json({ message: 'Login successful', teacher });
+            } catch (error) {
+                console.error('Error logging in:', error);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
+
         app.put('/update/teacher/:id', async (req, res) => {
             try {
                 const teacherId = req.params.id;
@@ -247,7 +277,7 @@ const run = async () => {
                 res.status(500).json({ error: 'Internal server error' });
             }
         });
-
+        
         app.delete("/teacher/:id", async (req, res) => {
             const id = req.params.id;
 
