@@ -17,14 +17,13 @@ const client = new MongoClient(uri, {
     serverApi: ServerApiVersion.v1,
 });
 
-// Define Student Schema
+//Student Schema
 const studentSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     contact: { type: String, required: true }
 });
 
-// Define Student Model
 const Student = mongoose.model('Student', studentSchema);
 
 
@@ -50,23 +49,44 @@ const run = async () => {
 
         app.post('/create-students', async (req, res) => {
             try {
-                // Check if a student with the same email or password already exists
-                const { email, password } = req.body;
-                const existingStudent = await studentsCollection.findOne({ $or: [{ email }, { password }] });
+                // Check if a student with the same email, password, or contact already exists
+                const { email, password, contact } = req.body;
+                const existingStudent = await studentsCollection.findOne({ $or: [{ email }, { password }, { contact }] });
+        
                 if (existingStudent) {
-                    return res.status(400).json({ error: 'Email/password/Contact already exists ' });
+                    let errorMessage = '';
+                    if (existingStudent.email === email) {
+                        errorMessage = 'Email is already exists';
+                    } else if (existingStudent.password === password) {
+                        errorMessage = 'Password is already exists';
+                    } else if (existingStudent.contact === contact) {
+                        errorMessage = 'Contact is already exists';
+                    }
+                    return res.status(400).json({ error: errorMessage });
                 }
-
-                // Generate student code
-                const highestStudent = await studentsCollection.findOne({}, { sort: { studentCode: -1 } });
+        
+                // Find all existing student codes
+                const existingStudents = await studentsCollection.find({}, { studentCode: 1 }).toArray();
+                const existingCodes = existingStudents.map(student => parseInt(student.studentCode));
+        
+                // Find the missing serial numbers
+                let missingCodes = [];
+                for (let i = 1; i <= existingCodes.length + 1; i++) {
+                    if (!existingCodes.includes(i)) {
+                        missingCodes.push(i);
+                    }
+                }
+        
+                // Assign the next available missing serial number to the newly created student
                 let studentCode;
-                if (highestStudent) {
-                    const nextCode = parseInt(highestStudent.studentCode) + 1;
-                    studentCode = nextCode.toString().padStart(3, '0');
+                if (missingCodes.length > 0) {
+                    studentCode = missingCodes[0].toString().padStart(3, '0');
                 } else {
-                    studentCode = '001';
+                    // If no missing serial numbers, generate the next sequential serial number
+                    const highestCode = Math.max(...existingCodes);
+                    studentCode = (highestCode + 1).toString().padStart(3, '0');
                 }
-
+        
                 // Create new student
                 const studentWithCode = { ...req.body, studentCode };
                 const result = await studentsCollection.insertOne(studentWithCode);
@@ -76,6 +96,8 @@ const run = async () => {
                 res.status(500).send('Error adding student');
             }
         });
+        
+
         app.get("/student/:id", async (req, res) => {
             const id = req.params.id;
 
@@ -103,7 +125,7 @@ const run = async () => {
         try {
             const studentId = req.params.id;
             const filter = { _id: new ObjectId(studentId) }; // Define the filter to match the student ID
-            const updatedData = req.body; // Assuming the updated data is sent in the request body
+            const updatedData = req.body;
     
             // Check if the updated email, contact, or password already exists for another student
             const { email, contact, password } = updatedData;
@@ -116,28 +138,15 @@ const run = async () => {
     
             // Update the student document based on the provided student ID
             const result = await studentsCollection.updateOne(filter, { $set: updatedData });
-    
-            // Check if any document was modified
             if (result.modifiedCount === 0) {
                 return res.status(404).json({ error: 'Student not found or information not updated' });
             }
-    
-            // Send a success message if the update was successful
             res.status(200).json({ message: 'Student information updated successfully' });
         } catch (error) {
             console.error('Failed to update student information:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
     });
-    
-    
-    
-    
-    
-    
-    
-
-
         // Login route handler
         app.post('/login', async (req, res) => {
             try {
