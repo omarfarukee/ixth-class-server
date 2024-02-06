@@ -32,6 +32,7 @@ const run = async () => {
         const db = client.db("ix-class-next");
         const categoryCollection = db.collection("category");
         const studentsCollection = db.collection("all-students");
+        const teachersCollection = db.collection("teachers");
 
         app.post("/category-group", async (req, res) => {
             const group = req.body;
@@ -157,21 +158,45 @@ const run = async () => {
         app.post('/login', async (req, res) => {
             try {
                 const { email, password } = req.body;
-
-                // Query the database to find a student with the provided email and password
                 const student = await studentsCollection.findOne({ email, password });
 
                 if (!student) {
                     return res.status(401).json({ error: 'Invalid email or password' });
                 }
-
-                // If student found, return a success response
                 res.status(200).json({ message: 'Login successful', student });
             } catch (error) {
                 console.error('Error logging in:', error);
                 res.status(500).json({ error: 'Internal server error' });
             }
         });
+
+        app.post("/create-teachers", async (req, res) => {
+            try {
+                // Check if a teacher with the same email, password, or contact already exists
+                const { email, password, contact } = req.body;
+                const existingTeacher = await teachersCollection.findOne({ $or: [{ email }, { password }, { contact }] });
+        
+                if (existingTeacher) {
+                    let errorMessage = '';
+                    if (existingTeacher.email === email) {
+                        errorMessage = 'Email is already exists';
+                    } else if (existingTeacher.password === password) {
+                        errorMessage = 'Password is already exists';
+                    } else if (existingTeacher.contact === contact) {
+                        errorMessage = 'Contact is already exists';
+                    }
+                    return res.status(400).json({ error: errorMessage });
+                }
+        
+                // If no existing teacher found with the same email, password, or contact, create a new teacher
+                const result = await teachersCollection.insertOne(req.body);
+                res.send(result);
+            } catch (error) {
+                console.error('Error adding teacher:', error);
+                res.status(500).send('Error adding teacher');
+            }
+        });
+        
 
 
 
