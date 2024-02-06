@@ -126,34 +126,43 @@ const run = async () => {
                 const studentId = req.params.id;
                 const filter = { _id: new ObjectId(studentId) }; // Define the filter to match the student ID
                 const updatedData = req.body;
-
-                // Check if the updated email, contact, or password already exists for another student
                 const { email, contact, password } = updatedData;
-                const existingStudent = await studentsCollection.findOne({ $or: [{ email }, { contact }, { password }] });
 
-                // If another student with the same email, contact, or password exists and it's not the current student being updated
-                if (existingStudent && existingStudent._id.toString() !== studentId) {
-                    return res.status(400).json({ error: 'this info is already exists try another' });
+                const existingStudentEmail = await studentsCollection.findOne({ email });
+                const existingStudentContact = await studentsCollection.findOne({ contact });
+                const existingStudentPassword = await studentsCollection.findOne({ password });
+
+                if (existingStudentEmail && existingStudentEmail._id.toString() !== studentId) {
+                    return res.status(400).json({ error: 'Email is already exists. Please try a different one.' });
                 }
 
-                // Update the student document based on the provided student ID
+                if (existingStudentContact && existingStudentContact._id.toString() !== studentId) {
+                    return res.status(400).json({ error: 'Contact is already exists. Please try a different one.' });
+                }
+
+                if (existingStudentPassword && existingStudentPassword._id.toString() !== studentId) {
+                    return res.status(400).json({ error: 'Password is already exists. Please try a different one.' });
+                }
+
                 const result = await studentsCollection.updateOne(filter, { $set: updatedData });
                 if (result.modifiedCount === 0) {
-                    return res.status(404).json({ error: 'Student not found or information not updated' });
+                    return res.status(404).json({ error: 'information not updated' });
                 }
+
                 res.status(200).json({ message: 'Student information updated successfully' });
             } catch (error) {
                 console.error('Failed to update student information:', error);
                 res.status(500).json({ error: 'Internal server error' });
             }
         });
+
         app.delete("/student/:id", async (req, res) => {
             const id = req.params.id;
-      
+
             const result = await studentsCollection.deleteOne({ _id: new ObjectId(id) });
             console.log(result);
             res.send(result);
-          });
+        });
         // Login route handler
         app.post('/login', async (req, res) => {
             try {
@@ -175,7 +184,7 @@ const run = async () => {
                 // Check if a teacher with the same email, password, or contact already exists
                 const { email, password, contact } = req.body;
                 const existingTeacher = await teachersCollection.findOne({ $or: [{ email }, { password }, { contact }] });
-        
+
                 if (existingTeacher) {
                     let errorMessage = '';
                     if (existingTeacher.email === email) {
@@ -187,7 +196,7 @@ const run = async () => {
                     }
                     return res.status(400).json({ error: errorMessage });
                 }
-        
+
                 // If no existing teacher found with the same email, password, or contact, create a new teacher
                 const result = await teachersCollection.insertOne(req.body);
                 res.send(result);
@@ -196,7 +205,49 @@ const run = async () => {
                 res.status(500).send('Error adding teacher');
             }
         });
-        
+        app.get("/all-teachers", async (req, res) => {
+            const cursor = teachersCollection.find({});
+            const allTeachers = await cursor.toArray();
+
+            res.send({ status: true, message: allTeachers.length, data: allTeachers });
+        });
+        app.put('/update/teacher/:id', async (req, res) => {
+            try {
+                const teacherId = req.params.id;
+                const filter = { _id: new ObjectId(teacherId) };
+                const updatedData = req.body;
+                const { email, contact, password } = updatedData;
+
+                const existingTeacherEmail = await teachersCollection.findOne({ email });
+                const existingTeacherContact = await teachersCollection.findOne({ contact });
+                const existingTeacherPassword = await teachersCollection.findOne({ password });
+
+                if (existingTeacherEmail && existingTeacherEmail._id.toString() !== teacherId) {
+                    return res.status(400).json({ error: 'Email is already exists. Please try a different one.' });
+                }
+
+                if (existingTeacherContact && existingTeacherContact._id.toString() !== teacherId) {
+                    return res.status(400).json({ error: 'Contact is already exists. Please try a different one.' });
+                }
+
+                if (existingTeacherPassword && existingTeacherPassword._id.toString() !== teacherId) {
+                    return res.status(400).json({ error: 'Password is already exists. Please try a different one.' });
+                }
+
+                // Update the teacher document based on the provided teacher ID
+                const result = await teachersCollection.updateOne(filter, { $set: updatedData });
+
+                if (result.modifiedCount === 0) {
+                    return res.status(404).json({ error: 'User not found or information not updated' });
+                }
+
+                res.status(200).json({ message: 'Teacher information updated successfully' });
+            } catch (error) {
+                console.error('Failed to update information:', error);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        });
+
 
 
 
