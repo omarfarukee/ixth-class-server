@@ -48,8 +48,6 @@ const run = async () => {
 
             res.send({ status: true, data: allGroups });
         });
-
-        // app.post('/create-students', async (req, res) => {
         //     try {
         //         // Check if a student with the same email, password, or contact already exists
         //         const { email, password, contact } = req.body;
