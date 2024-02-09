@@ -49,12 +49,62 @@ const run = async () => {
             res.send({ status: true, data: allGroups });
         });
 
+        // app.post('/create-students', async (req, res) => {
+        //     try {
+        //         // Check if a student with the same email, password, or contact already exists
+        //         const { email, password, contact } = req.body;
+        //         const existingStudent = await studentsCollection.findOne({ $or: [{ email }, { password }, { contact }] });
+
+        //         if (existingStudent) {
+        //             let errorMessage = '';
+        //             if (existingStudent.email === email) {
+        //                 errorMessage = 'Email is already exists';
+        //             } else if (existingStudent.password === password) {
+        //                 errorMessage = 'Password is already exists';
+        //             } else if (existingStudent.contact === contact) {
+        //                 errorMessage = 'Contact is already exists';
+        //             }
+        //             return res.status(400).json({ error: errorMessage });
+        //         }
+
+        //         // Find all existing student codes
+        //         const existingStudents = await studentsCollection.find({}, { studentCode: 1 }).toArray();
+        //         const existingCodes = existingStudents.map(student => parseInt(student.studentCode));
+
+        //         // Find the missing serial numbers
+        //         let missingCodes = [];
+        //         for (let i = 1; i <= existingCodes.length + 1; i++) {
+        //             if (!existingCodes.includes(i)) {
+        //                 missingCodes.push(i);
+        //             }
+        //         }
+
+        //         // Assign the next available missing serial number to the newly created student
+        //         let studentCode;
+        //         if (missingCodes.length > 0) {
+        //             studentCode = missingCodes[0].toString().padStart(3, '0');
+        //         } else {
+        //             // If no missing serial numbers, generate the next sequential serial number
+        //             const highestCode = Math.max(...existingCodes);
+        //             studentCode = (highestCode + 1).toString().padStart(3, '0');
+        //         }
+
+        //         // Create new student
+        //         const studentWithCode = { ...req.body, studentCode };
+        //         const result = await studentsCollection.insertOne(studentWithCode);
+        //         res.send(result);
+        //     } catch (error) {
+        //         console.error('Error adding student:', error);
+        //         res.status(500).send('Error adding student');
+        //     }
+        // });
+
         app.post('/create-students', async (req, res) => {
             try {
                 // Check if a student with the same email, password, or contact already exists
                 const { email, password, contact } = req.body;
                 const existingStudent = await studentsCollection.findOne({ $or: [{ email }, { password }, { contact }] });
-
+        
                 if (existingStudent) {
                     let errorMessage = '';
                     if (existingStudent.email === email) {
@@ -66,11 +116,11 @@ const run = async () => {
                     }
                     return res.status(400).json({ error: errorMessage });
                 }
-
+        
                 // Find all existing student codes
                 const existingStudents = await studentsCollection.find({}, { studentCode: 1 }).toArray();
                 const existingCodes = existingStudents.map(student => parseInt(student.studentCode));
-
+        
                 // Find the missing serial numbers
                 let missingCodes = [];
                 for (let i = 1; i <= existingCodes.length + 1; i++) {
@@ -78,7 +128,7 @@ const run = async () => {
                         missingCodes.push(i);
                     }
                 }
-
+        
                 // Assign the next available missing serial number to the newly created student
                 let studentCode;
                 if (missingCodes.length > 0) {
@@ -88,17 +138,22 @@ const run = async () => {
                     const highestCode = Math.max(...existingCodes);
                     studentCode = (highestCode + 1).toString().padStart(3, '0');
                 }
-
+        
                 // Create new student
                 const studentWithCode = { ...req.body, studentCode };
                 const result = await studentsCollection.insertOne(studentWithCode);
-                res.send(result);
+        
+                // Fetch the newly inserted student from the database
+                const newStudent = await studentsCollection.findOne({ _id: result.insertedId });
+        
+                // Send the response with acknowledgment and new student details
+                res.status(201).json({ acknowledged: true, student: newStudent });
             } catch (error) {
                 console.error('Error adding student:', error);
                 res.status(500).send('Error adding student');
             }
         });
-
+        
         app.get("/student/:id", async (req, res) => {
             const id = req.params.id;
 
