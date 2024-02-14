@@ -33,6 +33,7 @@ const run = async () => {
         const categoryCollection = db.collection("category");
         const studentsCollection = db.collection("all-students");
         const teachersCollection = db.collection("teachers");
+        const resultsCollection = db.collection("results");
 
         app.post("/category-group", async (req, res) => {
             const group = req.body;
@@ -48,77 +49,35 @@ const run = async () => {
 
             res.send({ status: true, data: allGroups });
         });
-        //     try {
-        //         // Check if a student with the same email, password, or contact already exists
-        //         const { email, password, contact } = req.body;
-        //         const existingStudent = await studentsCollection.findOne({ $or: [{ email }, { password }, { contact }] });
+        app.get("/students", async (req, res) => {
+            const cursor = studentsCollection.find({});
+            const allStudent = await cursor.toArray();
 
-        //         if (existingStudent) {
-        //             let errorMessage = '';
-        //             if (existingStudent.email === email) {
-        //                 errorMessage = 'Email is already exists';
-        //             } else if (existingStudent.password === password) {
-        //                 errorMessage = 'Password is already exists';
-        //             } else if (existingStudent.contact === contact) {
-        //                 errorMessage = 'Contact is already exists';
-        //             }
-        //             return res.status(400).json({ error: errorMessage });
-        //         }
-
-        //         // Find all existing student codes
-        //         const existingStudents = await studentsCollection.find({}, { studentCode: 1 }).toArray();
-        //         const existingCodes = existingStudents.map(student => parseInt(student.studentCode));
-
-        //         // Find the missing serial numbers
-        //         let missingCodes = [];
-        //         for (let i = 1; i <= existingCodes.length + 1; i++) {
-        //             if (!existingCodes.includes(i)) {
-        //                 missingCodes.push(i);
-        //             }
-        //         }
-
-        //         // Assign the next available missing serial number to the newly created student
-        //         let studentCode;
-        //         if (missingCodes.length > 0) {
-        //             studentCode = missingCodes[0].toString().padStart(3, '0');
-        //         } else {
-        //             // If no missing serial numbers, generate the next sequential serial number
-        //             const highestCode = Math.max(...existingCodes);
-        //             studentCode = (highestCode + 1).toString().padStart(3, '0');
-        //         }
-
-        //         // Create new student
-        //         const studentWithCode = { ...req.body, studentCode };
-        //         const result = await studentsCollection.insertOne(studentWithCode);
-        //         res.send(result);
-        //     } catch (error) {
-        //         console.error('Error adding student:', error);
-        //         res.status(500).send('Error adding student');
-        //     }
-        // });
+            res.send({ status: true, data: allStudent });
+        });
 
         app.post('/create-students', async (req, res) => {
             try {
                 // Check if a student with the same email, password, or contact already exists
                 const { email, password, contact } = req.body;
                 const existingStudent = await studentsCollection.findOne({ $or: [{ email }, { password }, { contact }] });
-        
+
                 if (existingStudent) {
                     let errorMessage = '';
                     if (existingStudent.email === email) {
                         errorMessage = 'Email is already exists';
                     } else if (existingStudent.password === password) {
-                        errorMessage = 'Password is already exists';
+                        errorMessage = 'Password is already exists, please set unique password';
                     } else if (existingStudent.contact === contact) {
                         errorMessage = 'Contact is already exists';
                     }
                     return res.status(400).json({ error: errorMessage });
                 }
-        
+
                 // Find all existing student codes
                 const existingStudents = await studentsCollection.find({}, { studentCode: 1 }).toArray();
                 const existingCodes = existingStudents.map(student => parseInt(student.studentCode));
-        
+
                 // Find the missing serial numbers
                 let missingCodes = [];
                 for (let i = 1; i <= existingCodes.length + 1; i++) {
@@ -126,7 +85,7 @@ const run = async () => {
                         missingCodes.push(i);
                     }
                 }
-        
+
                 // Assign the next available missing serial number to the newly created student
                 let studentCode;
                 if (missingCodes.length > 0) {
@@ -136,14 +95,14 @@ const run = async () => {
                     const highestCode = Math.max(...existingCodes);
                     studentCode = (highestCode + 1).toString().padStart(3, '0');
                 }
-        
+
                 // Create new student
                 const studentWithCode = { ...req.body, studentCode };
                 const result = await studentsCollection.insertOne(studentWithCode);
-        
+
                 // Fetch the newly inserted student from the database
                 const newStudent = await studentsCollection.findOne({ _id: result.insertedId });
-        
+
                 // Send the response with acknowledgment and new student details
                 res.status(201).json({ acknowledged: true, student: newStudent });
             } catch (error) {
@@ -151,7 +110,7 @@ const run = async () => {
                 res.status(500).send('Error adding student');
             }
         });
-        
+
         app.get("/student/:id", async (req, res) => {
             const id = req.params.id;
 
@@ -160,95 +119,61 @@ const run = async () => {
             res.send(result);
         });
 
-        app.get('/students/:id', async (req, res) => {
-            const id = req.params.group_id;
-            const query = { categoryId: id };
-            console.log(query)
-            const result = await studentsCollection.find(query).toArray();
-            if (result) {
-                res.status(200).json({ message: `${result.length} students get successfully`, result });
-            }
-            else {
-                res.status(404).json({ message: 'student not found' })
-            }
-            // res.send(result);
-
-        })
-        // Update student route handler
-        // app.put('/update/student/:id', async (req, res) => {
-        //     try {
-        //         const studentId = req.params.id;
-        //         const filter = { _id: new ObjectId(studentId) }; // Define the filter to match the student ID
-        //         const updatedData = req.body;
-        //         const { email, contact, password } = updatedData;
-
-        //         const existingStudentEmail = await studentsCollection.findOne({ email });
-        //         const existingStudentContact = await studentsCollection.findOne({ contact });
-        //         const existingStudentPassword = await studentsCollection.findOne({ password });
-
-        //         if (existingStudentEmail && existingStudentEmail._id.toString() !== studentId) {
-        //             return res.status(400).json({ error: 'Email is already exists. Please try a different one.' });
-        //         }
-
-        //         if (existingStudentContact && existingStudentContact._id.toString() !== studentId) {
-        //             return res.status(400).json({ error: 'Contact is already exists. Please try a different one.' });
-        //         }
-
-        //         if (existingStudentPassword && existingStudentPassword._id.toString() !== studentId) {
-        //             return res.status(400).json({ error: 'Password is already exists. Please try a different one.' });
-        //         }
-
-        //         const result = await studentsCollection.updateOne(filter, { $set: updatedData });
-        //         if (result.modifiedCount === 0) {
-        //             return res.status(404).json({ error: 'information not updated' });
-        //         }
-
-        //         res.status(200).json({ message: 'Student information updated successfully', result: result, updatedData: updatedData });  
-        //     } catch (error) {
-        //         console.error('Failed to update student information:', error);
-        //         res.status(500).json({ error: 'Internal server error' });
+        // app.get('/students/:id', async (req, res) => {
+        //     const id = req.params.group_id;
+        //     const query = { categoryId: id };
+        //     console.log(query)
+        //     const result = await studentsCollection.find(query).toArray();
+        //     if (result) {
+        //         res.status(200).json({ message: `${result.length} students get successfully`, result });
         //     }
-        // });
+        //     else {
+        //         res.status(404).json({ message: 'student not found' })
+        //     }
+        //     // res.send(result);
+
+        // })
+
         app.put('/update/student/:id', async (req, res) => {
             try {
                 const studentId = req.params.id;
                 const filter = { _id: new ObjectId(studentId) }; // Define the filter to match the student ID
                 const updatedData = req.body;
                 const { email, contact, password } = updatedData;
-        
+
                 if (email) {
                     const existingStudentEmail = await studentsCollection.findOne({ email });
                     if (existingStudentEmail && existingStudentEmail._id.toString() !== studentId) {
                         return res.status(400).json({ error: 'Email is already exists. Please try a different one.' });
                     }
                 }
-        
+
                 if (contact) {
                     const existingStudentContact = await studentsCollection.findOne({ contact });
                     if (existingStudentContact && existingStudentContact._id.toString() !== studentId) {
                         return res.status(400).json({ error: 'Contact is already exists. Please try a different one.' });
                     }
                 }
-        
+
                 if (password) {
                     const existingStudentPassword = await studentsCollection.findOne({ password });
                     if (existingStudentPassword && existingStudentPassword._id.toString() !== studentId) {
                         return res.status(400).json({ error: 'Password is already exists. Please try a different one.' });
                     }
                 }
-        
+
                 const result = await studentsCollection.updateOne(filter, { $set: updatedData });
                 if (result.modifiedCount === 0) {
                     return res.status(404).json({ error: 'Information not updated' });
                 }
-        
-                res.status(200).json({ message: 'Student information updated successfully', result: result, updatedData: updatedData });  
+
+                res.status(200).json({ message: 'Student information updated successfully', result: result, updatedData: updatedData });
             } catch (error) {
                 console.error('Failed to update student information:', error);
                 res.status(500).json({ error: 'Internal server error' });
             }
         });
-        
+
 
         app.delete("/student/:id", async (req, res) => {
             const id = req.params.id;
@@ -295,7 +220,9 @@ const run = async () => {
 
                 // If no existing teacher found with the same email, password, or contact, create a new teacher
                 const result = await teachersCollection.insertOne(req.body);
-                res.send(result);
+                const newTeacher = await teachersCollection.findOne({ _id: result.insertedId });
+                res.status(201).json({ acknowledged: true, teacher: newTeacher });
+                console.log(newTeacher)
             } catch (error) {
                 console.error('Error adding teacher:', error);
                 res.status(500).send('Error adding teacher');
@@ -361,16 +288,16 @@ const run = async () => {
                 const result = await teachersCollection.updateOne(filter, { $set: updatedData });
 
                 if (result.modifiedCount === 0) {
-                    return res.status(404).json({ error: 'User not found or information not updated' });
+                    return res.status(404).json({ error: 'information not updated' });
                 }
 
-                res.status(200).json({ message: 'Teacher information updated successfully' });
+                res.status(200).json({ message: 'Teacher information updated successfully', result: result, updatedData: updatedData });
             } catch (error) {
                 console.error('Failed to update information:', error);
                 res.status(500).json({ error: 'Internal server error' });
             }
         });
-        
+
         app.delete("/teacher/:id", async (req, res) => {
             const id = req.params.id;
 
@@ -379,7 +306,85 @@ const run = async () => {
             res.send(result);
         });
 
+        // ------------------------result make----------------------------
+        app.post("/create-result", async (req, res) => {
+            try {
+                const group = req.body;
+                const studentCode = group.studentCode;
+                const existingResult = await resultsCollection.findOne({ studentCode });
 
+                if (existingResult) {
+                    return res.status(400).json({ success: false, message: "A result already exists for this student code" });
+                }
+                const result = await resultsCollection.insertOne(group);
+
+                if (result.acknowledged === true) {
+                    return res.status(200).json({ success: true, message: "Result created successfully", result: group });
+                } else {
+                    return res.status(400).json({ success: false, message: "Failed to create result" });
+                }
+            } catch (error) {
+                console.error("Error creating result:", error);
+                return res.status(500).json({ success: false, message: "Internal server error" });
+            }
+        });
+
+        app.put("/update-result/:studentCode", async (req, res) => {
+            try {
+                const studentCode = req.params.studentCode;
+                const updatedResult = req.body;
+                const existingResult = await resultsCollection.findOne({ studentCode });
+
+                if (!existingResult) {
+                    return res.status(404).json({ success: false, message: "Result not found for the provided student code" });
+                }
+                const result = await resultsCollection.updateOne({ studentCode }, { $set: updatedResult });
+
+                if (result.modifiedCount === 1) {
+                    return res.status(200).json({ success: true, message: "Result updated successfully" });
+                } else {
+                    return res.status(400).json({ success: false, message: "Information not updated" });
+                }
+            } catch (error) {
+                console.error("Error updating result:", error);
+                return res.status(500).json({ success: false, message: "Internal server error" });
+            }
+        });
+
+        app.get("/results", async (req, res) => {
+            const cursor = resultsCollection.find({});
+            const allResults = await cursor.toArray();
+
+            res.send({ status: true, data: allResults });
+        });
+        app.get("/results/:studentCode", async (req, res) => {
+            try {
+                const studentCode = req.params.studentCode;
+                const student = await studentsCollection.findOne({ studentCode });
+        
+                if (!student) {
+                    return res.status(404).json({ success: false, message: "Student not found for the provided student code" });
+                }
+                const result = await resultsCollection.findOne({ studentCode });
+        
+                if (!result) {
+                    return res.status(200).json({ success: true, message: "No result found for the provided student code" });
+                }
+                return res.status(200).json({ success: true, result });
+            } catch (error) {
+                console.error("Error fetching result:", error);
+                return res.status(500).json({ success: false, message: "Internal server error" });
+            }
+        });
+
+        app.delete("/result/delete/:id", async (req, res) => {
+            const id = req.params.id;
+
+            const result = await resultsCollection.deleteOne({ _id: new ObjectId(id) });
+            console.log(result);
+            res.send(result);
+        });
+        
 
     }
     finally {
