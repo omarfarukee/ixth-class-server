@@ -422,9 +422,7 @@ const run = async () => {
                 console.error("Error updating result:", error);
                 return res.status(500).json({ success: false, message: "Internal server error" });
             }
-        });
-        
-        
+        });   
         
         function calculateGradePoint(marks) {
             if (marks >= 80) {
@@ -476,6 +474,7 @@ const run = async () => {
             console.log(result);
             res.send(result);
         });
+        
         app.delete("/result/delete/:id", async (req, res) => {
             const id = req.params.id;
 
