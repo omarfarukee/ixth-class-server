@@ -319,14 +319,14 @@ const run = async () => {
             try {
                 const { physics, chemistry, biology, math, bangla, english, history } = req.body;
                 
-                // Calculate total marks
+                // Calculate total marks-----------------------------
                 const totalMarks = physics + chemistry + biology + math + bangla + english + history;
                 
-                // Check if any subject has less than 33 marks
+                // Check if any subject has less than 33 marks--------------------
                 const marksArray = [physics, chemistry, biology, math, bangla, english, history];
                 const hasFailingGrade = marksArray.some(mark => mark < 33);
                 
-                // Calculate GPA
+                // Calculate GPA------------------------
                 let gpa;
                 if (hasFailingGrade) {
                     gpa = 0.00;
@@ -336,10 +336,8 @@ const run = async () => {
                     gpa = +(totalGradePoints / numberOfSubjects).toFixed(2);
                 }
                 
-                // Determine grade based on GPA
+                //grade based on GPA=======---------------------
                 const grade = calculateGradeFromGPA(gpa);
-                
-                // Prepare result object
                 const result = {
                     physics,
                     chemistry,
@@ -355,7 +353,7 @@ const run = async () => {
                     name: req.body.name
                 };
                 
-                // Insert result into the database
+                // Insert result into the database---------------------
                 const insertionResult = await resultsCollection.insertOne(result);
                 
                 if (insertionResult.acknowledged) {
@@ -376,34 +374,45 @@ const run = async () => {
                 const objectId = new ObjectId(id);
                 
                 const existingResult = await resultsCollection.findOne({ _id: objectId });
-        
+                
                 if (!existingResult) {
                     return res.status(404).json({ success: false, message: "Result not found for the provided ID" });
                 }
+                
+                // Filter out non-subject fields
+                const subjectMarks = {};
+                Object.keys(updatedResult).forEach(key => {
+                    if (['physics', 'chemistry', 'biology', 'math', 'bangla', 'english', 'history'].includes(key)) {
+                        subjectMarks[key] = updatedResult[key];
+                    }
+                });
         
                 // Check if any subject mark is less than 33
-                const isAnySubjectBelow33 = Object.values(updatedResult).some(mark => typeof mark === 'number' && mark < 33);
+                const isAnySubjectBelow33 = Object.values(subjectMarks).some(mark => typeof mark === 'number' && mark < 33);
                 
                 // Calculate total marks
-                const totalMarks = Object.values(updatedResult).reduce((acc, cur) => typeof cur === 'number' ? acc + cur : acc, 0);
-        
-                // Calculate GPA
+                const totalMarks = Object.values(subjectMarks).reduce((acc, cur) => typeof cur === 'number' ? acc + cur : acc, 0);
+                
+                // Calculate GPA and grade
                 let gpa = 0.00;
                 let grade = 'F';
-        
+                
                 if (!isAnySubjectBelow33) {
-                    const totalGradePoints = Object.values(updatedResult).reduce((acc, mark) => acc + calculateGradePoint(mark), 0);
-                    const numberOfSubjects = Object.keys(updatedResult).length;
+                    const totalGradePoints = Object.values(subjectMarks).reduce((acc, mark) => acc + calculateGradePoint(mark), 0);
+                    const numberOfSubjects = Object.keys(subjectMarks).length;
                     gpa = +(totalGradePoints / numberOfSubjects).toFixed(2);
                     const roundedGPA = gpa.toFixed(2);
                     grade = calculateGradeFromGPA(gpa);
                 }
+        
+                // Update the total marks, GPA, and grade
                 updatedResult.totalMarks = totalMarks;
                 updatedResult.gpa = gpa;
                 updatedResult.grade = grade;
-        
+                
+                // Update the result in the database
                 const result = await resultsCollection.updateOne({ _id: objectId }, { $set: updatedResult });
-        
+                
                 if (result.modifiedCount === 1) {
                     return res.status(200).json({ success: true, message: "Result updated successfully", updatedResult });
                 } else {
@@ -414,6 +423,7 @@ const run = async () => {
                 return res.status(500).json({ success: false, message: "Internal server error" });
             }
         });
+        
         
         
         function calculateGradePoint(marks) {
@@ -451,39 +461,7 @@ const run = async () => {
                 return 'F';
             }
         }
-
-
-   
-
-        // app.put("/updateResult/:id", async (req, res) => {
-        //     try {
-        //         const id = req.params.id;
-        //         const updatedResult = req.body;
-        //         const objectId =new ObjectId(id);
-                
-        //         const existingResult = await resultsCollection.findOne({ _id: objectId });
         
-        //         if (!existingResult) {
-        //             return res.status(404).json({ success: false, message: "Result not found for the provided ID" });
-        //         }
-        
-        //         const result = await resultsCollection.updateOne({ _id: objectId }, { $set: updatedResult });
-        
-        //         if (result.modifiedCount === 1) {
-        //             return res.status(200).json({ success: true, message: "Result updated successfully" });
-        //         } else {
-        //             return res.status(400).json({ success: false, message: "Information not updated" });
-        //         }
-        //     } catch (error) {
-        //         console.error("Error updating result:", error);
-        //         return res.status(500).json({ success: false, message: "Internal server error" });
-        //     }
-        // });
-        
-        
-        
-        
-
         app.get("/results", async (req, res) => {
             const cursor = resultsCollection.find({});
             const allResults = await cursor.toArray();
