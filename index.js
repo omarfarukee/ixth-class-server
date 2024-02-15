@@ -307,19 +307,59 @@ const run = async () => {
         });
 
         // ------------------------result make----------------------------
+
         app.post("/create-result", async (req, res) => {
+            const group = req.body;
+            const studentCode = group.studentCode;
+            const existingResult = await resultsCollection.findOne({ studentCode });
+    
+            if (existingResult) {
+                return res.status(400).json({ success: false, message: "Result already exists for this student code" });
+            }
             try {
-                const group = req.body;
-                const studentCode = group.studentCode;
-                const existingResult = await resultsCollection.findOne({ studentCode });
-
-                if (existingResult) {
-                    return res.status(400).json({ success: false, message: "A result already exists for this student code" });
+                const { physics, chemistry, biology, math, bangla, english, history } = req.body;
+                
+                // Calculate total marks
+                const totalMarks = physics + chemistry + biology + math + bangla + english + history;
+                
+                // Check if any subject has less than 33 marks
+                const marksArray = [physics, chemistry, biology, math, bangla, english, history];
+                const hasFailingGrade = marksArray.some(mark => mark < 33);
+                
+                // Calculate GPA
+                let gpa;
+                if (hasFailingGrade) {
+                    gpa = 0.00;
+                } else {
+                    const totalGradePoints = marksArray.reduce((acc, mark) => acc + calculateGradePoint(mark), 0);
+                    const numberOfSubjects = marksArray.length;
+                    gpa = +(totalGradePoints / numberOfSubjects).toFixed(2);
                 }
-                const result = await resultsCollection.insertOne(group);
-
-                if (result.acknowledged === true) {
-                    return res.status(200).json({ success: true, message: "Result created successfully", result: group });
+                
+                // Determine grade based on GPA
+                const grade = calculateGradeFromGPA(gpa);
+                
+                // Prepare result object
+                const result = {
+                    physics,
+                    chemistry,
+                    biology,
+                    math,
+                    bangla,
+                    english,
+                    history,
+                    totalMarks,
+                    gpa,
+                    grade,
+                    studentCode: req.body.studentCode,
+                    name: req.body.name
+                };
+                
+                // Insert result into the database
+                const insertionResult = await resultsCollection.insertOne(result);
+                
+                if (insertionResult.acknowledged) {
+                    return res.status(200).json({ success: true, message: "Result created successfully", result });
                 } else {
                     return res.status(400).json({ success: false, message: "Failed to create result" });
                 }
@@ -329,19 +369,43 @@ const run = async () => {
             }
         });
 
-        app.put("/update-result/:studentCode", async (req, res) => {
+        app.put("/updateResult/:id", async (req, res) => {
             try {
-                const studentCode = req.params.studentCode;
+                const id = req.params.id;
                 const updatedResult = req.body;
-                const existingResult = await resultsCollection.findOne({ studentCode });
-
+                const objectId = new ObjectId(id);
+                
+                const existingResult = await resultsCollection.findOne({ _id: objectId });
+        
                 if (!existingResult) {
-                    return res.status(404).json({ success: false, message: "Result not found for the provided student code" });
+                    return res.status(404).json({ success: false, message: "Result not found for the provided ID" });
                 }
-                const result = await resultsCollection.updateOne({ studentCode }, { $set: updatedResult });
-
+        
+                // Check if any subject mark is less than 33
+                const isAnySubjectBelow33 = Object.values(updatedResult).some(mark => typeof mark === 'number' && mark < 33);
+                
+                // Calculate total marks
+                const totalMarks = Object.values(updatedResult).reduce((acc, cur) => typeof cur === 'number' ? acc + cur : acc, 0);
+        
+                // Calculate GPA
+                let gpa = 0.00;
+                let grade = 'F';
+        
+                if (!isAnySubjectBelow33) {
+                    const totalGradePoints = Object.values(updatedResult).reduce((acc, mark) => acc + calculateGradePoint(mark), 0);
+                    const numberOfSubjects = Object.keys(updatedResult).length;
+                    gpa = +(totalGradePoints / numberOfSubjects).toFixed(2);
+                    const roundedGPA = gpa.toFixed(2);
+                    grade = calculateGradeFromGPA(gpa);
+                }
+                updatedResult.totalMarks = totalMarks;
+                updatedResult.gpa = gpa;
+                updatedResult.grade = grade;
+        
+                const result = await resultsCollection.updateOne({ _id: objectId }, { $set: updatedResult });
+        
                 if (result.modifiedCount === 1) {
-                    return res.status(200).json({ success: true, message: "Result updated successfully" });
+                    return res.status(200).json({ success: true, message: "Result updated successfully", updatedResult });
                 } else {
                     return res.status(400).json({ success: false, message: "Information not updated" });
                 }
@@ -350,6 +414,75 @@ const run = async () => {
                 return res.status(500).json({ success: false, message: "Internal server error" });
             }
         });
+        
+        
+        function calculateGradePoint(marks) {
+            if (marks >= 80) {
+                return 5.00;
+            } else if (marks >= 70) {
+                return 4.00;
+            } else if (marks >= 60) {
+                return 3.50;
+            } else if (marks >= 50) {
+                return 3.00;
+            } else if (marks >= 40) {
+                return 2.00;
+            } else if (marks >= 33) {
+                return 1.00;
+            } else {
+                return 0.00;
+            }
+        }
+        
+        function calculateGradeFromGPA(gpa) {
+            if (gpa === 5.00) {
+                return 'A+';
+            } else if (gpa >= 4.00) {
+                return 'A';
+            } else if (gpa >= 3.50) {
+                return 'A-';
+            } else if (gpa >= 3.00) {
+                return 'B';
+            } else if (gpa >= 2.00) {
+                return 'C';
+            } else if (gpa >= 1.00) {
+                return 'D';
+            } else {
+                return 'F';
+            }
+        }
+
+
+   
+
+        // app.put("/updateResult/:id", async (req, res) => {
+        //     try {
+        //         const id = req.params.id;
+        //         const updatedResult = req.body;
+        //         const objectId =new ObjectId(id);
+                
+        //         const existingResult = await resultsCollection.findOne({ _id: objectId });
+        
+        //         if (!existingResult) {
+        //             return res.status(404).json({ success: false, message: "Result not found for the provided ID" });
+        //         }
+        
+        //         const result = await resultsCollection.updateOne({ _id: objectId }, { $set: updatedResult });
+        
+        //         if (result.modifiedCount === 1) {
+        //             return res.status(200).json({ success: true, message: "Result updated successfully" });
+        //         } else {
+        //             return res.status(400).json({ success: false, message: "Information not updated" });
+        //         }
+        //     } catch (error) {
+        //         console.error("Error updating result:", error);
+        //         return res.status(500).json({ success: false, message: "Internal server error" });
+        //     }
+        // });
+        
+        
+        
+        
 
         app.get("/results", async (req, res) => {
             const cursor = resultsCollection.find({});
@@ -357,26 +490,14 @@ const run = async () => {
 
             res.send({ status: true, data: allResults });
         });
-        app.get("/results/:studentCode", async (req, res) => {
-            try {
-                const studentCode = req.params.studentCode;
-                const student = await studentsCollection.findOne({ studentCode });
-        
-                if (!student) {
-                    return res.status(404).json({ success: false, message: "Student not found for the provided student code" });
-                }
-                const result = await resultsCollection.findOne({ studentCode });
-        
-                if (!result) {
-                    return res.status(200).json({ success: true, message: "No result found for the provided student code" });
-                }
-                return res.status(200).json({ success: true, result });
-            } catch (error) {
-                console.error("Error fetching result:", error);
-                return res.status(500).json({ success: false, message: "Internal server error" });
-            }
-        });
 
+        app.get("/result/:id", async (req, res) => {
+            const id = req.params.id;
+
+            const result = await resultsCollection.findOne({ _id: new ObjectId(id) });
+            console.log(result);
+            res.send(result);
+        });
         app.delete("/result/delete/:id", async (req, res) => {
             const id = req.params.id;
 
