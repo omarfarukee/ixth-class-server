@@ -34,6 +34,54 @@ const run = async () => {
         const studentsCollection = db.collection("all-students");
         const teachersCollection = db.collection("teachers");
         const resultsCollection = db.collection("results");
+        const examCollection = db.collection("exam-name");
+
+        app.post("/examName", async (req, res) => {
+            const exam = req.body;
+            console.log(exam);
+            const existingExam = await examCollection.findOne({ name: exam.name });
+            if (existingExam) {
+                return res.status(400).json({ error: "Exam name already exists" });
+            }
+            const result = await examCollection.insertOne(exam);
+        
+            res.send(result);
+        });
+        app.get("/examName/:id", async (req, res) => {
+            const id = req.params.id;
+
+            const result = await examCollection.findOne({ _id: new ObjectId(id) });
+            console.log(result);
+            res.send(result);
+        });
+        app.get("/examName", async (req, res) => {
+            const cursor = examCollection.find({});
+            const allGroups = await cursor.toArray();
+
+            res.send({ status: true, data: allGroups });
+        });
+        app.put("/examName/:id", async (req, res) => {
+            const examId = req.params.id;
+            const updatedExam = req.body;
+        
+            try {
+                // Check if the exam with the given ID exists in the database
+                const existingExam = await examCollection.findOne({ _id: new ObjectId(examId) });
+                if (!existingExam) {
+                    return res.status(404).json({ error: "Exam not found" });
+                }
+                const isDataChanged = JSON.stringify(existingExam) !== JSON.stringify(updatedExam);
+                if (!isDataChanged) {
+                    return res.status(200).json({ message: "Data did not update", data: existingExam });
+                }
+                await examCollection.updateOne({ _id: new ObjectId(examId) }, { $set: updatedExam });
+        
+                res.status(200).json({ message: "Updated successfully", data: updatedExam });
+            } catch (error) {
+                console.error("Error updating exam name:", error);
+                res.status(500).json({ error: "Internal server error" });
+            }
+        });
 
         app.post("/category-group", async (req, res) => {
             const group = req.body;
