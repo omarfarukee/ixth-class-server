@@ -10,6 +10,14 @@ const { default: mongoose } = require("mongoose");
 app.use(cors());
 app.use(express.json());
 
+const corsOptions = {
+    origin: 'http://localhost:3000', // Allow requests from this origin
+    methods: ['GET', 'POST','DELETE','PUT'], // Allow only specified HTTP methods
+    allowedHeaders: ['Content-Type', 'Authorization'], // Allow only specified headers
+  };
+  
+  app.use(cors(corsOptions));
+  
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.xdpsuxi.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
     useNewUrlParser: true,
