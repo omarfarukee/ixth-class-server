@@ -3,21 +3,11 @@ const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 5000;
-
-const cors = require("cors");
-
 const { default: mongoose } = require("mongoose");
-
-// app.use(cors());
-
-
-app.use(cors({
-    origin: "http://localhost:3000", // Replace with your actual frontend origin
-    // methods: ["GET", "POST"], // Specify allowed methods
-    // credentials: true, // Allow cookies for authenticated requests
-  }));
+const cors = require("cors");
+app.use(cors())
   
-  app.use(express.json());
+app.use(express.json());
   
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.xdpsuxi.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
@@ -26,15 +16,12 @@ const client = new MongoClient(uri, {
     serverApi: ServerApiVersion.v1,
 });
 
-//Student Schema
 const studentSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     contact: { type: String, required: true }
 });
-
 const Student = mongoose.model('Student', studentSchema);
-
 
 const run = async () => {
     try {
