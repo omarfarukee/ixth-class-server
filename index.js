@@ -9,13 +9,15 @@ const cors = require("cors");
 const { default: mongoose } = require("mongoose");
 
 // app.use(cors());
-app.use(express.json());
+
 
 app.use(cors({
     origin: "http://localhost:3000", // Replace with your actual frontend origin
     // methods: ["GET", "POST"], // Specify allowed methods
     // credentials: true, // Allow cookies for authenticated requests
   }));
+  
+  app.use(express.json());
   
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.xdpsuxi.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
