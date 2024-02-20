@@ -339,7 +339,7 @@ const run = async () => {
             res.send(result);
         });
 
-        // ------------------------result make----------------------------
+        // ------------------------result make---------------------------
 
         app.get('/singleResult/:studentCode', async (req, res) => {
             const id = req.params.studentCode;
